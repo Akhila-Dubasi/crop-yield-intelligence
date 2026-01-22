@@ -18,5 +18,8 @@ realtime==1.0.6
 storage3==0.7.7
 supafunc==0.3.3
 
+# HTTP client (CRITICAL FIX)
+httpx==0.24.1
+
 # Utils
 python-dotenv==1.0.1
