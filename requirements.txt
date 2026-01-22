@@ -18,7 +18,7 @@ joblib==1.5.3
 shap==0.44.1
 
 # ------------------------------
-# Supabase (STABLE + COMPATIBLE)
+# Supabase (LOCKED & COMPATIBLE)
 # ------------------------------
 supabase==2.2.0
 gotrue==2.8.1
@@ -26,9 +26,6 @@ postgrest==0.13.1
 realtime==1.0.5
 storage3==0.7.6
 supafunc==0.3.2
-
-# Required HTTP client (COMPATIBLE)
-httpx==0.23.3
 
 # ------------------------------
 # Utilities
