@@ -17,19 +17,38 @@ st.set_page_config(
     layout="wide"
 )
 
-# --------------------------------------------------
-# LOAD MODEL BUNDLE, ENCODERS, SCALER
-# --------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-model_bundle = joblib.load(os.path.join(BASE_DIR, "model", "crop_model.pkl"))
+# --------------------------------------------------
+# CACHED LOADERS (🔥 CRITICAL FIX)
+# --------------------------------------------------
+@st.cache_resource(show_spinner="Loading model...")
+def load_model_bundle():
+    return joblib.load(os.path.join(BASE_DIR, "model", "crop_model.pkl"))
+
+@st.cache_resource(show_spinner=False)
+def load_encoders():
+    return joblib.load(os.path.join(BASE_DIR, "model", "encoders.pkl"))
+
+@st.cache_resource(show_spinner=False)
+def load_scaler():
+    return joblib.load(os.path.join(BASE_DIR, "model", "scaler.pkl"))
+
+@st.cache_resource(show_spinner="Preparing explanation engine...")
+def load_explainer(model):
+    return shap.TreeExplainer(model)
+
+# --------------------------------------------------
+# LOAD ONCE (FROM CACHE)
+# --------------------------------------------------
+model_bundle = load_model_bundle()
 model = model_bundle["model"]
 MODEL_VERSION = model_bundle["version"]
 
-encoders = joblib.load(os.path.join(BASE_DIR, "model", "encoders.pkl"))
-scaler = joblib.load(os.path.join(BASE_DIR, "model", "scaler.pkl"))
+encoders = load_encoders()
+scaler = load_scaler()
 
-explainer = shap.TreeExplainer(model)
+# ❗ explainer is loaded lazily later
 
 # --------------------------------------------------
 # SESSION STATE
@@ -55,7 +74,7 @@ if st.session_state.user is None:
 
         if st.button("Login"):
             res = login(email, password)
-            if res.user:
+            if res and res.user:
                 st.session_state.user = res.user
                 st.rerun()
 
@@ -124,13 +143,7 @@ if st.button("Predict Yield"):
 
     # --- Confidence label
     cv = std / mean_yield if mean_yield > 0 else 1.0
-
-    if cv < 0.2:
-        confidence = "High"
-    elif cv < 0.5:
-        confidence = "Medium"
-    else:
-        confidence = "Low"
+    confidence = "High" if cv < 0.2 else "Medium" if cv < 0.5 else "Low"
 
     save_prediction(
         user.id,
@@ -147,13 +160,15 @@ if st.button("Predict Yield"):
     st.warning(f"🔍 Prediction Confidence: {confidence}")
 
     # --------------------------------------------------
-    # EXPLANATION SECTION
+    # EXPLANATION SECTION (LAZY LOAD)
     # --------------------------------------------------
     st.subheader("🧠 Model Explanation")
 
+    explainer = load_explainer(model)
+    shap_values = explainer.shap_values(X)
+
     col_a, col_b = st.columns(2)
 
-    # --- Feature Importance
     with col_a:
         st.markdown("### Feature Importance (Global)")
         fi_df = pd.DataFrame({
@@ -163,11 +178,8 @@ if st.button("Predict Yield"):
 
         st.bar_chart(fi_df.set_index("Feature"))
 
-    # --- SHAP Explanation
     with col_b:
         st.markdown("### SHAP Explanation (This Prediction)")
-        shap_values = explainer.shap_values(X)
-
         shap_df = pd.DataFrame({
             "Feature": ["State", "Crop", "Season", "Year", "Area"],
             "Impact": shap_values[0]
@@ -181,7 +193,5 @@ if st.button("Predict Yield"):
 st.subheader("📊 Prediction History")
 
 history = get_user_history(user.id)
-
 if history:
-    df = pd.DataFrame(history)
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(pd.DataFrame(history), use_container_width=True)
