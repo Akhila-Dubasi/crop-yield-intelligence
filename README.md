@@ -31,25 +31,6 @@ A full-stack machine learning application that predicts crop yield using histori
 **Utilities**
 - NumPy, Pandas, Joblib
 
-
-## 📂 Project Structure
-
-crop-yield-intelligence/
-│
-├── app.py # Streamlit app
-├── auth.py # Authentication logic
-├── db.py # Database operations
-├── supabase_client.py # Supabase client setup
-├── model/
-│ ├── crop_model.pkl
-│ ├── encoders.pkl
-│ └── scaler.pkl
-├── requirements.txt
-└── README.md
-
-
----
-
 ## ⚙️ Setup Instructions
 
 ### 1️⃣ Clone Repository
