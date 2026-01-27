@@ -19,7 +19,7 @@ st.set_page_config(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --------------------------------------------------
-# CACHED LOADERS (SAFE)
+# CACHED LOADERS (CRITICAL)
 # --------------------------------------------------
 @st.cache_resource(show_spinner="Loading model...")
 def load_model_bundle():
@@ -33,6 +33,8 @@ def load_encoders():
 def load_scaler():
     return joblib.load(os.path.join(BASE_DIR, "model", "scaler.pkl"))
 
+
+
 # --------------------------------------------------
 # LOAD ONCE
 # --------------------------------------------------
@@ -44,11 +46,12 @@ encoders = load_encoders()
 scaler = load_scaler()
 
 # --------------------------------------------------
-# SESSION STATE
+# SESSION STATE (SAFE)
 # --------------------------------------------------
 if "user" not in st.session_state:
     st.session_state.user = None
 
+# Fetch session ONLY ONCE
 if st.session_state.user is None:
     session = supabase.auth.get_session()
     if session and session.user:
@@ -124,8 +127,9 @@ if st.button("Predict Yield"):
 
         X = np.array([[state_enc, crop_enc, season_enc, year_scaled, area_scaled]])
 
-        prediction = model.predict(X)[0]
-        mean_yield = max(0, float(prediction))
+        # Fast uncertainty (no hang)
+        preds = model.predict(X)
+        mean_yield = max(0, float(preds[0]))
         total_production = mean_yield * area
 
         confidence = "Medium"
@@ -143,19 +147,6 @@ if st.button("Predict Yield"):
         st.success(f"🌾 Yield: {mean_yield:.2f} t/ha")
         st.info(f"📦 Total Production: {total_production:.2f} tonnes")
         st.warning(f"🔍 Prediction Confidence: {confidence}")
-
-        # --------------------------------------------------
-        # SIMPLE EXPLANATION (SAFE)
-        # --------------------------------------------------
-        st.subheader("📊 Feature Importance (Model Level)")
-
-        fi_df = pd.DataFrame({
-            "Feature": ["State", "Crop", "Season", "Year", "Area"],
-            "Importance": model.feature_importances_
-        }).sort_values(by="Importance", ascending=False)
-
-        st.bar_chart(fi_df.set_index("Feature"))
-
     except Exception as e:
         st.error("Prediction failed. Please try again.")
         st.exception(e)
@@ -176,3 +167,5 @@ if history:
     }, inplace=True)
 
     st.dataframe(df, use_container_width=True)
+
+
