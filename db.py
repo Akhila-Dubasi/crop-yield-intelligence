@@ -1,34 +1,29 @@
-# db.py
-from typing import List, Dict
+from supabase_client import supabase
 
 def save_prediction(
-    user_id: str,
-    state: str,
-    crop: str,
-    season: str,
-    year: int,
-    predicted_yield: float,
-    confidence: str
+    user_id,
+    state,
+    crop,
+    season,
+    year,
+    predicted_yield,
+    confidence_level
 ):
-    from supabase_client import supabase  # ✅ IMPORT INSIDE FUNCTION
-
     data = {
-        "user_id": user_id,
+        "user_id": user_id,              # 🔥 REQUIRED for RLS
         "state_name": state,
         "crop": crop,
         "season": season,
-        "year": year,
-        "predicted_yield": predicted_yield,
-        "confidence_level": confidence
+        "year": int(year),
+        "predicted_yield": float(predicted_yield),
+        "confidence_level": confidence_level,
     }
 
     response = supabase.table("user_predictions").insert(data).execute()
     return response
 
 
-def get_user_history(user_id: str) -> List[Dict]:
-    from supabase_client import supabase  # ✅ IMPORT INSIDE FUNCTION
-
+def get_user_history(user_id):
     response = (
         supabase
         .table("user_predictions")
@@ -37,5 +32,4 @@ def get_user_history(user_id: str) -> List[Dict]:
         .order("created_at", desc=True)
         .execute()
     )
-
-    return response.data if response.data else []
+    return response.data

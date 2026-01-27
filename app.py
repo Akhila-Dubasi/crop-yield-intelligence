@@ -138,12 +138,12 @@ if st.button("Predict Yield"):
         confidence = "Medium"
 
         save_prediction(
-            user.id,
+            str(user.id),
             state,
             crop,
             season,
             year,
-            round(total_production, 2),
+            round(float(total_production), 2),
             confidence
         )
 
