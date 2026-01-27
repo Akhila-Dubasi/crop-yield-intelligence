@@ -1,5 +1,6 @@
 from supabase_client import supabase
 
+
 def save_prediction(
     user_id,
     state,
@@ -10,7 +11,9 @@ def save_prediction(
     confidence_level
 ):
     data = {
-        "user_id": user_id,              # 🔥 REQUIRED for RLS
+        # 🔥 MUST be string UUID for RLS to pass
+        "user_id": str(user_id),
+
         "state_name": state,
         "crop": crop,
         "season": season,
@@ -20,7 +23,7 @@ def save_prediction(
     }
 
     response = supabase.table("user_predictions").insert(data).execute()
-    return response
+    return response.data
 
 
 def get_user_history(user_id):
@@ -28,7 +31,7 @@ def get_user_history(user_id):
         supabase
         .table("user_predictions")
         .select("*")
-        .eq("user_id", user_id)
+        .eq("user_id", str(user_id))   # 🔥 MUST be string
         .order("created_at", desc=True)
         .execute()
     )
