@@ -71,17 +71,26 @@ if st.session_state.user is None:
 
         if st.button("Login"):
             res = login(email, password)
-            if res and res.user:
+
+            if res is None or res.user is None:
+                st.error("❌ Account not found or wrong password. Please sign up.")
+            else:
                 st.session_state.user = res.user
                 st.rerun()
+
 
     with tab2:
         new_email = st.text_input("New Email")
         new_password = st.text_input("New Password", type="password")
 
         if st.button("Create Account"):
-            signup(new_email, new_password)
-            st.success("Account created. Please login.")
+            res = signup(new_email, new_password)
+
+            if res is None:
+                st.error("❌ Unable to create account. Email may already exist.")
+            else:
+                st.success("✅ Account created. Please login.")
+
 
     st.stop()
 
