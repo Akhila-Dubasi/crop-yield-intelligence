@@ -3,7 +3,6 @@ import streamlit as st
 import joblib
 import numpy as np
 import pandas as pd
-import shap
 
 from supabase_client import supabase
 from auth import signup, login, logout
@@ -20,7 +19,7 @@ st.set_page_config(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --------------------------------------------------
-# CACHED LOADERS (CRITICAL)
+# CACHED LOADERS (SAFE)
 # --------------------------------------------------
 @st.cache_resource(show_spinner="Loading model...")
 def load_model_bundle():
@@ -34,8 +33,6 @@ def load_encoders():
 def load_scaler():
     return joblib.load(os.path.join(BASE_DIR, "model", "scaler.pkl"))
 
-
-
 # --------------------------------------------------
 # LOAD ONCE
 # --------------------------------------------------
@@ -47,12 +44,11 @@ encoders = load_encoders()
 scaler = load_scaler()
 
 # --------------------------------------------------
-# SESSION STATE (SAFE)
+# SESSION STATE
 # --------------------------------------------------
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Fetch session ONLY ONCE
 if st.session_state.user is None:
     session = supabase.auth.get_session()
     if session and session.user:
@@ -128,9 +124,8 @@ if st.button("Predict Yield"):
 
         X = np.array([[state_enc, crop_enc, season_enc, year_scaled, area_scaled]])
 
-        # Fast uncertainty (no hang)
-        preds = model.predict(X)
-        mean_yield = max(0, float(preds[0]))
+        prediction = model.predict(X)[0]
+        mean_yield = max(0, float(prediction))
         total_production = mean_yield * area
 
         confidence = "Medium"
@@ -150,18 +145,16 @@ if st.button("Predict Yield"):
         st.warning(f"🔍 Prediction Confidence: {confidence}")
 
         # --------------------------------------------------
-        # EXPLANATION (OPTIONAL, SAFE)
+        # SIMPLE EXPLANATION (SAFE)
         # --------------------------------------------------
-        with st.expander("🧠 Model Explanation"):
-            explainer = load_explainer(model)
-            shap_values = explainer.shap_values(X)
+        st.subheader("📊 Feature Importance (Model Level)")
 
-            shap_df = pd.DataFrame({
-                "Feature": ["State", "Crop", "Season", "Year", "Area"],
-                "Impact": shap_values[0]
-            }).sort_values(by="Impact", key=abs, ascending=False)
+        fi_df = pd.DataFrame({
+            "Feature": ["State", "Crop", "Season", "Year", "Area"],
+            "Importance": model.feature_importances_
+        }).sort_values(by="Importance", ascending=False)
 
-            st.bar_chart(shap_df.set_index("Feature"))
+        st.bar_chart(fi_df.set_index("Feature"))
 
     except Exception as e:
         st.error("Prediction failed. Please try again.")
