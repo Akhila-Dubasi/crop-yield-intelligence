@@ -34,9 +34,6 @@ def load_encoders():
 def load_scaler():
     return joblib.load(os.path.join(BASE_DIR, "model", "scaler.pkl"))
 
-@st.cache_resource(show_spinner="Preparing explanation engine...")
-def load_explainer(_model):
-    return shap.TreeExplainer(_model)
 
 
 # --------------------------------------------------
