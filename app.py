@@ -173,13 +173,35 @@ if st.button("Predict Yield"):
 st.subheader("📊 Prediction History")
 
 history = get_user_history(user.id)
+
 if history:
     df = pd.DataFrame(history)
+
+    # ✅ Keep only user-relevant columns
+    df = df[[
+        "state_name",
+        "crop",
+        "season",
+        "year",
+        "predicted_yield",
+        "confidence_level",
+        "created_at"
+    ]]
+
+    # ✅ Rename for UI
     df.rename(columns={
         "state_name": "State",
+        "crop": "Crop",
+        "season": "Season",
+        "year": "Year",
         "predicted_yield": "Yield (tonnes)",
         "confidence_level": "Confidence",
         "created_at": "Date"
     }, inplace=True)
 
+    # ✅ Optional: nicer date format
+    df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%d %b %Y, %H:%M")
+
     st.dataframe(df, use_container_width=True)
+else:
+    st.info("No predictions yet. Make your first prediction 🌱")
