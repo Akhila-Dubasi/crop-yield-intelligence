@@ -1,5 +1,4 @@
 from supabase_client import supabase
-from uuid import UUID
 
 def save_prediction(
     user_id,
@@ -11,7 +10,7 @@ def save_prediction(
     confidence_level
 ):
     data = {
-        "user_id": UUID(user_id),   # ✅ ENSURE UUID TYPE
+        "user_id": str(user_id),  # ✅ FORCE string (FIX)
         "state_name": state,
         "crop": crop,
         "season": season,
@@ -24,12 +23,12 @@ def save_prediction(
 
 
 def get_user_history(user_id):
-    return (
+    response = (
         supabase
         .table("user_predictions")
         .select("*")
-        .eq("user_id", user_id)
+        .eq("user_id", str(user_id))  # ✅ SAFE
         .order("created_at", desc=True)
         .execute()
-        .data
     )
+    return response.data

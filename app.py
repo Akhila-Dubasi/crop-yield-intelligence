@@ -155,7 +155,7 @@ if st.button("Predict Yield"):
             crop,
             season,
             year,
-            round(total_production, 2),
+            round(float(total_production), 2),
             confidence
         )
 
