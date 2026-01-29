@@ -19,7 +19,7 @@ st.set_page_config(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --------------------------------------------------
-# CACHED LOADERS (CRITICAL)
+# CACHED LOADERS
 # --------------------------------------------------
 @st.cache_resource(show_spinner="Loading model...")
 def load_model_bundle():
@@ -33,10 +33,8 @@ def load_encoders():
 def load_scaler():
     return joblib.load(os.path.join(BASE_DIR, "model", "scaler.pkl"))
 
-
-
 # --------------------------------------------------
-# LOAD ONCE
+# LOAD MODEL & ARTIFACTS
 # --------------------------------------------------
 model_bundle = load_model_bundle()
 model = model_bundle["model"]
@@ -46,19 +44,19 @@ encoders = load_encoders()
 scaler = load_scaler()
 
 # --------------------------------------------------
-# SESSION STATE (SAFE)
+# SESSION STATE
 # --------------------------------------------------
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Fetch session ONLY ONCE
+# Restore session safely
 if st.session_state.user is None:
     session = supabase.auth.get_session()
     if session and session.user:
         st.session_state.user = session.user
 
 # ==================================================
-# AUTH
+# AUTH SECTION
 # ==================================================
 if st.session_state.user is None:
     st.title("🌾 Crop Yield Intelligence Platform")
@@ -70,25 +68,30 @@ if st.session_state.user is None:
         password = st.text_input("Password", type="password")
 
         if st.button("Login"):
-            res = login(email, password)
-            if res and res.user:
-                st.session_state.user = res.user
-                st.rerun()
-            else:
-                st.error("❌ Account not found or incorrect password. Please sign up.")
-
+            try:
+                res = login(email, password)
+                if res and res.user:
+                    st.session_state.user = res.user
+                    st.rerun()
+                else:
+                    st.error("❌ Account not found or incorrect password.")
+            except Exception:
+                st.error("❌ Account not registered. Please sign up first.")
 
     with tab2:
         new_email = st.text_input("New Email")
         new_password = st.text_input("New Password", type="password")
 
         if st.button("Create Account"):
-            res = signup(new_email, new_password)
-            if res:
-                st.success("✅ Account created. Please login.")
-            else:
-                st.error("❌ Signup failed. Email may already exist.")
-
+            try:
+                res = signup(new_email, new_password)
+                if res:
+                    st.success("✅ Account created. Please login.")
+                else:
+                    st.error("❌ Signup failed. Email may already exist.")
+            except Exception as e:
+                st.error("❌ Signup failed.")
+                st.exception(e)
 
     st.stop()
 
@@ -126,6 +129,12 @@ with col2:
 # --------------------------------------------------
 if st.button("Predict Yield"):
     try:
+        # 🔐 Ensure auth session exists (CRITICAL for RLS)
+        session = supabase.auth.get_session()
+        if not session or not session.user:
+            st.error("⚠️ Session expired. Please login again.")
+            st.stop()
+
         state_enc = encoders["state_name"].transform([state])[0]
         crop_enc = encoders["crop"].transform([crop])[0]
         season_enc = encoders["season"].transform([season])[0]
@@ -134,7 +143,6 @@ if st.button("Predict Yield"):
 
         X = np.array([[state_enc, crop_enc, season_enc, year_scaled, area_scaled]])
 
-        # Fast uncertainty (no hang)
         preds = model.predict(X)
         mean_yield = max(0, float(preds[0]))
         total_production = mean_yield * area
@@ -142,20 +150,21 @@ if st.button("Predict Yield"):
         confidence = "Medium"
 
         save_prediction(
-            str(user.id),
+            user.id,   # UUID passed correctly
             state,
             crop,
             season,
             year,
-            round(float(total_production), 2),
+            round(total_production, 2),
             confidence
         )
 
         st.success(f"🌾 Yield: {mean_yield:.2f} t/ha")
         st.info(f"📦 Total Production: {total_production:.2f} tonnes")
         st.warning(f"🔍 Prediction Confidence: {confidence}")
+
     except Exception as e:
-        st.error("Prediction failed. Please try again.")
+        st.error("❌ Prediction failed. Please try again.")
         st.exception(e)
 
 # --------------------------------------------------
@@ -174,5 +183,3 @@ if history:
     }, inplace=True)
 
     st.dataframe(df, use_container_width=True)
-
-
